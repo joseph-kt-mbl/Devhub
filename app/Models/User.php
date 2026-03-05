@@ -1,8 +1,11 @@
 <?php
 
+/**
+ * @property string $role
+ */
+
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -12,30 +15,21 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens;
-
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory;
-    use HasProfilePhoto;
-    use Notifiable;
-    use TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, HasProfilePhoto, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
      */
     protected $fillable = [
         'name',
         'email',
-        'role',
+        'role',      // 'developer', 'client', 'admin'
         'password',
+        'bio'
     ];
 
     /**
      * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
      */
     protected $hidden = [
         'password',
@@ -46,17 +40,13 @@ class User extends Authenticatable
 
     /**
      * The accessors to append to the model's array form.
-     *
-     * @var array<int, string>
      */
     protected $appends = [
         'profile_photo_url',
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
+     * Attribute casting.
      */
     protected function casts(): array
     {
@@ -64,5 +54,70 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    // --------------------------
+    // ROLE HELPERS
+    // --------------------------
+
+    public function isDeveloper(): bool
+    {
+        return $this->role === 'developer';
+    }
+
+    public function isClient(): bool
+    {
+        return $this->role === 'client';
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    // --------------------------
+    // PROFILE RELATIONSHIPS
+    // --------------------------
+
+    /**
+     * Developer profile (freelancer profile)
+     */
+    public function developerProfile()
+    {
+        return $this->hasOne(Developer::class);
+    }
+
+    /**
+     * Client profile
+     */
+    public function clientProfile()
+    {
+        return $this->hasOne(Client::class);
+    }
+
+    /**
+     * Get the correct profile automatically based on role
+     */
+    public function profile()
+    {
+        if ($this->isDeveloper()) {
+            return $this->developerProfile();
+        } elseif ($this->isClient()) {
+            return $this->clientProfile();
+        }
+
+        return null; // Admin or unassigned
+    }
+
+    // --------------------------
+    // UTILITY METHODS
+    // --------------------------
+
+    /**
+     * Check if user has a given role
+     */
+    public function hasRole(string $role): bool
+    {
+        return $this->role === $role;
     }
 }
